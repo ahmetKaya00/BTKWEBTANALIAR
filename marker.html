@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Web AR — MindAR + A-Frame</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MindAR (A-Frame entegrasyonu) -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111827cc; --border:#1f2937; --text:#e6edf3; --muted:#9aa4b2;
+      --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    }
+    html,body{height:100%;margin:0;background:#000;color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+    .topbar,.bottombar{
+      position:fixed;left:0;right:0;display:flex;gap:10px;align-items:center;
+      background:var(--panel);border-bottom:1px solid var(--border);padding:10px 12px;z-index:10
+    }
+    .topbar{top:0}
+    .bottombar{bottom:0;border-top:1px solid var(--border);border-bottom:none;justify-content:center}
+    .brand{font-weight:600}
+    .spacer{flex:1}
+    .btn{border:1px solid var(--border);background:#0f172acc;color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.ok{border-color:#124b29}
+    .btn.warn{border-color:#5a430a}
+    .status-pill{font-weight:600}
+    .hud{
+      position:fixed;left:50%;transform:translateX(-50%);top:60px;background:var(--panel);
+      border:1px solid var(--border);padding:6px 10px;border-radius:10px;z-index:10;color:var(--muted)
+    }
+    .dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;background:#444}
+    .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.wait{background:#666}
+    a-scene{position:fixed;inset:0}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Web AR</div>
+    <div class="status-pill" id="status">Durum: Başlatılmadı</div>
+    <div class="spacer"></div>
+    <button class="btn ok" id="btnStart">Başlat</button>
+    <button class="btn warn" id="btnStop" disabled>Durdur</button>
+  </div>
+
+  <div class="hud" id="hud">Markeri kamera görüşüne getir...</div>
+
+  <div class="bottombar">
+    <div class="hint">
+      <span class="dot wait" id="permDot"></span>
+      Kamera iznini verdiğinden emin ol.
+    </div>
+  </div>
+
+  <!-- SAHNE -->
+  <a-scene
+    mindar-image="imageTargetSrc: ./assets/logo.mind; filterMinCF: 0.001; filterBeta: 0.001; autoStart: false"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true"
+    embedded
+  >
+    <a-assets>
+      <!-- Marker görseli: eğitim amaçlı sahnede gösteriyoruz -->
+      <img id="logo" src="./assets/logo.jpeg" crossorigin="anonymous">
+    </a-assets>
+
+    <!-- Işıklar -->
+    <a-entity light="type: ambient; intensity: 0.9"></a-entity>
+    <a-entity light="type: directional; intensity: 0.8" position="1 2 0"></a-entity>
+
+    <!-- Marker hedefi -->
+    <a-entity id="target0" mindar-image-target="targetIndex: 0">
+      <!-- Görsel düzlem -->
+      <a-plane
+        src="#logo" width="1" height="1" position="0 0 0" rotation="-90 0 0" transparent="true"
+        animation__in="property: scale; from: 0 0 0; to: 1 1 1; dur: 400; easing: easeOutBack; startEvents: show"
+        animation__out="property: scale; from: 1 1 1; to: 0 0 0; dur: 300; easing: easeInQuad; startEvents: hide">
+      </a-plane>
+
+      <!-- Yüzen kutu -->
+      <a-box position="0 0.5 0" depth="0.2" height="0.2" width="0.8" color="#60a5fa"
+             animation__float="property: position; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true; to: 0 0.65 0">
+      </a-box>
+    </a-entity>
+
+    <!-- Kamera (MindAR yönetir, bakış kontrolünü kapattık) -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  </a-scene>
+
+  <script>
+    const scene   = document.querySelector('a-scene');
+    const statusE = document.getElementById('status');
+    const hud     = document.getElementById('hud');
+    const permDot = document.getElementById('permDot');
+
+    const btnStart = document.getElementById('btnStart');
+    const btnStop  = document.getElementById('btnStop');
+
+    function mindarSystem () {
+      return scene.systems['mindar-image-system'];
+    }
+
+    btnStart.addEventListener('click', async () => {
+      try {
+        statusE.textContent = 'Durum: Başlatılıyor...';
+        permDot.className = 'dot wait';
+        await mindarSystem().start(); // autoStart:false olduğu için manuel başlatıyoruz
+        statusE.textContent = 'Durum: Çalışıyor (Marker bekleniyor)';
+        btnStart.disabled = true;
+        btnStop.disabled  = false;
+        permDot.className = 'dot ok';
+      } catch (err) {
+        console.error(err);
+        statusE.textContent = 'Durum: Başlatılamadı';
+        permDot.className = 'dot bad';
+      }
+    });
+
+    btnStop.addEventListener('click', async () => {
+      try {
+        await mindarSystem().stop();
+        statusE.textContent = 'Durum: Durduruldu';
+        btnStart.disabled = false;
+        btnStop.disabled  = true;
+        permDot.className = 'dot warn';
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    const target = document.getElementById('target0');
+
+    // Doğru tetikleyiciler: bulunduğunda "show", kaybolduğunda "hide"
+    target.addEventListener('targetFound', () => {
+      hud.textContent   = 'Marker bulundu!';
+      statusE.textContent = 'Durum: Marker bulundu!';
+      target.querySelectorAll('[animation__in]').forEach(el => el.emit('show'));
+    });
+
+    target.addEventListener('targetLost', () => {
+      hud.textContent   = 'Marker kayboldu, görüşe getir!';
+      statusE.textContent = 'Durum: Marker kayboldu!';
+      target.querySelectorAll('[animation__out]').forEach(el => el.emit('hide'));
+    });
+
+    window.addEventListener('load', () => {
+      hud.textContent = 'Başlat’a bas, sonra markeri göster!';
+    });
+  </script>
+</body>
+</html>

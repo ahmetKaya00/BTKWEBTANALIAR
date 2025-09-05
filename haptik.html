@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Web Haptics Lab</title>
+  <style>
+    :root{--bg:#0f172a; --panel:#111827; --fg:#e5e7eb; --muted:#94a3b8; --accent:#38bdf8;}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;}
+    .wrap{max-width:980px;margin:0 auto;padding:24px;}
+    h1{font-size:24px;margin:0 0 10px;}
+    p.lead{color:var(--muted);margin-top:0;}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px;}
+    @media(min-width:900px){.grid{grid-template-columns:1.2fr 1fr;}}
+    .card{background:var(--panel);border:1px solid #1f2937;border-radius:12px;padding:16px;}
+    .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+    button{border:1px solid #1f2937;background:#0b1220;color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer;}
+    button:hover{border-color:#334155;}
+    .ok{border-color:#0ea5e9;}
+    .warn{border-color:#eab308;}
+    .bad{border-color:#ef4444;}
+    .pill{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:#0b1220;border:1px solid #1f2937;color:var(--muted);}
+    .log{height:140px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0b1220;border:1px solid #1f2937;border-radius:8px;padding:10px;}
+    .texture-pad{
+      position:relative;height:280px;border-radius:12px;border:1px dashed #334155;
+      background:repeating-linear-gradient(90deg,#0f172a 0 12px,#0e1a31 12px 24px);
+      overflow:hidden;user-select:none;touch-action:none;
+    }
+    .cursor{
+      position:absolute;width:22px;height:22px;border-radius:50%;
+      border:2px solid var(--accent);background:transparent;pointer-events:none;
+      transform:translate(-50%,-50%);box-shadow:0 0 0 2px #0b1220;
+      left:50%;top:50%;
+    }
+    .meter{width:100%;height:8px;background:#0b1220;border:1px solid #1f2937;border-radius:999px;overflow:hidden}
+    #speedBar{display:block;height:100%;width:0%;background:var(--accent)}
+    .shake{animation:microshake 80ms linear 1;}
+    @keyframes microshake{
+      0%{transform:translate(-50%,-50%);}
+      25%{transform:translate(calc(-50% + 2px),calc(-50% - 1px));}
+      50%{transform:translate(calc(-50% - 2px),calc(-50% + 1px));}
+      75%{transform:translate(calc(-50% + 1px),calc(-50% + 2px));}
+      100%{transform:translate(-50%,-50%);}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Web Haptics Lab</h1>
+    <p class="lead">Vibration API + Pseudo-Haptics + Gamepad Rumble.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>1) Pseudo-Haptics: "Texture Pad"</h2>
+        <p class="pill">Donanım Gerekmez</p>
+        <p>Aşağıdaki alana parmağınızı ya da imleci basılı tutup sağa-sola hareket ettirin.</p>
+        <div id="texturePad" class="texture-pad">
+          <div id="cursor" class="cursor"></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="meter"><i id="speedBar"></i></div>
+          <small class="pill" id="speedText">Hız: 0 px/sn</small>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2) Vibration API & Gamepad</h2>
+        <div class="row">
+          <button id="vShort" class="ok">Kısa Titreşim (30ms)</button>
+          <button id="vLong" class="ok">Uzun Titreşim (200ms)</button>
+          <button id="vPattern" class="ok">Desen: [60,30,60,30,120]</button>
+          <button id="vRamp" class="ok">Kademeli Artış (5x)</button>
+          <button id="vStop" class="bad">Durdur</button>
+        </div>
+        <h3 style="margin-top:16px">GamePad</h3>
+        <p class="pill" id="gpStatus">Durum: gamepad bekleniyor...</p>
+        <div class="row">
+          <button id="gpScan" class="warn">GamePad Tara</button>
+          <button id="gpBuzz" class="ok">Rumble Test (300ms)</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Log</h2>
+      <div id="log" class="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const logBox = $('#log');
+    function log(msg){
+      const t = new Date().toLocaleTimeString();
+      logBox.innerHTML = `[${t}] ${msg}<br>` + logBox.innerHTML;
+    }
+
+    if(location.protocol !== 'https:'){
+      log('Not: Bazı API\'lar (titreşim/ses) için HTTPS ve kullanıcı etkileşimi gerekir.');
+    }
+
+    /* ------- Audio click micro-haptic ------- */
+    let audioCtx;
+    function ensureAudio(){
+      if(!audioCtx){ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    }
+    function clicksound(volume=0.05, duration=0.02){
+      if(!audioCtx) return;
+      const sr = audioCtx.sampleRate;
+      const buffer = audioCtx.createBuffer(1, Math.floor(sr*duration), sr);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<data.length;i++){
+        // küçük “tık” için beyaz gürültü darbesi
+        data[i] = (Math.random()*2 - 1) * volume;
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(audioCtx.destination);
+      src.start();
+    }
+
+    /* ------- Texture Pad ------- */
+    const pad = $('#texturePad');
+    const cursor = $('#cursor');
+    const speedBar = $('#speedBar');
+    const speedText = $('#speedText');
+
+    let dragging = false;
+    let last = {x:0,y:0,t:0};
+    let accumulated = 0;
+    const STRIPE_W = 24;
+
+    function handleMove(clientX, clientY){
+      const rect = pad.getBoundingClientRect();
+      // x,y’yi pad sınırlarına kıstır
+      const x = Math.min(Math.max(clientX, rect.left), rect.right);
+      const y = Math.min(Math.max(clientY, rect.top),  rect.bottom);
+      const now = performance.now();
+
+      const cx = x - rect.left;
+      const cy = y - rect.top;
+      cursor.style.left = cx + 'px';
+      cursor.style.top  = cy + 'px';
+
+      if(last.t){
+        const dx = x - last.x, dy = y - last.y;
+        const dt = Math.max((now - last.t) / 1000, 1e-3);
+        const speed = Math.hypot(dx, dy) / dt;
+
+        const pct = Math.max(0, Math.min(100, (speed/800)*100));
+        speedBar.style.width = pct + '%';
+        speedText.textContent = `Hız: ${Math.round(speed)} px/sn`;
+
+        accumulated += Math.abs(dx);
+        if(accumulated >= STRIPE_W){
+          accumulated = accumulated % STRIPE_W;
+          cursor.classList.remove('shake');
+          void cursor.offsetWidth; // reflow
+          cursor.classList.add('shake');
+          clicksound(Math.min(0.02 + speed/8000, 0.08), 0.015);
+        }
+
+        if(speed > 600){
+          // çok hafif sarsma
+          pad.style.transform = `translate(${(Math.random()-0.5)*2}px, ${(Math.random()-0.5)*2}px)`;
+          requestAnimationFrame(()=> pad.style.transform = 'translate(0,0)');
+        }
+      }
+      last = {x, y, t: now};
+    }
+
+    function onPointerDown(e){
+      dragging = true;
+      ensureAudio(); // ilk kullanıcı etkileşiminde aç
+      pad.setPointerCapture?.(e.pointerId);
+      last = {x:e.clientX, y:e.clientY, t:performance.now()};
+      cursor.style.opacity = '1';
+    }
+    function onPointerMove(e){
+      if(!dragging) return;
+      handleMove(e.clientX, e.clientY);
+    }
+    function onPointerUp(){
+      dragging = false;
+      accumulated = 0;
+      speedBar.style.width = '0%';
+      speedText.textContent = 'Hız: 0 px/sn';
+    }
+
+    pad.addEventListener('pointerdown', onPointerDown, {passive:true});
+    pad.addEventListener('pointermove', onPointerMove, {passive:true});
+    pad.addEventListener('pointerup', onPointerUp, {passive:true});
+    pad.addEventListener('pointercancel', onPointerUp, {passive:true});
+    pad.addEventListener('pointerleave', onPointerUp, {passive:true});
+  </script>
+</body>
+</html>
