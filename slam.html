@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body{margin: 0;font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;}
+    #ui{position: fixed;inset: auto 0 0 0;display: flex;gap: 8px;justify-content: center;padding: 10px;background: #111827cc;color: #e5e7eb;}
+    button{border: 0;border-radius: 10px;padding: 8px 14px;background: #16a34a;color: #fff;}
+  </style>
+</head>
+<body>
+    <div id="ui">
+        <span id="s">Hazır...(Android + Chrome + HTTPS)</span>
+        <button id="go">AR'ı Başlat</button>
+    </div>
+
+    <a-scene id="sc"
+        xr-mode="ar" webxr="optionalFeatures: hit-test,light-estimation"vr-mode-ui="enabled: false" embedded>
+
+        <a-entity id="ret" visible="false" geometry="primitive:ring;radiusInner:0.045;radiusOuter:0.05" rotation="-90 0 0" material="color: #38bdf8; metalness:.4;rougness:.3"></a-entity>
+
+        <a-entity id="obj" visible="false" scale="0.2 0.2 0.2">
+            <a-torus-knot radius="0.2" radius-tubular="0.05"material="color: #f59e0b"></a-torus-knot>
+            <a-light type="directional" intensity="1" position="1 2 1"></a-light>
+            <a-light type="ambient" intensity="0.6"></a-light>
+        </a-entity>
+
+        <a-camera></a-camera>
+    </a-scene>
+
+    <script>
+        const $=id=>document.getElementById(id),
+        sc=$('sc'),s=$('s'),go=$('go'),ret=$('ret'),obj=$('obj');
+        let src=null, ref=null, last=null;
+
+        go.onclick = async () => {
+            if(!navigator.xr || !(await navigator.xr.isSessionSupported('immersive-ar'))){
+                s.textContent = "Bu cihazda WebXR AR Yok. Ardroid + Chrome deneyin!"; return;
+            }
+            s.textContent = "Kamera izni verin!";
+            await sc.enterVR();
+        };
+
+        sc.addEventListener('renderstart', () =>{
+            const r = sc.renderer;
+            r.xr.addEventListener('sessionstart', async () => {
+                s.textContent = "Yüzey arıyorum...telefonu yavaşça hareket ettir!";
+            
+                const session = r.xr.getSession();
+                const viewer = await session.requestReferenceSpace('viewer');
+                ref = await r.xr.getReferenceSpace();
+                src = await session.requestHitTestSource({space: viewer})
+
+                sr.canvas.addEventListener('click', () => {
+                    if(!last) return;
+                    obj.object3D.position.copy(ret.object3D.position);
+                    obj.object3D.quaternion.copy(ret.object3D.quaternion);
+                    obj.setAttribute('visible', true);
+                });
+
+                r.setAnimationLoop(()=>{
+                    const frame = r.xr.getFrame(); if(!frame || !src)return;
+                    const hits = frame.getHitTestResults(src);
+                    if(!hits.length){ret.setAttribute('visible',false); return;}
+                    const pose = hits[0].getPose(ref); last = pose;
+
+                    const p=pose.transform.position, q=pose.transform.orientation;
+                    ret.object3D.position.set(p.x,p.y,p.z);
+                    ret.object3D.quaternion.set(q.x,q.y,q.z,q.w);
+                    ret.setAttribute('visible', true);
+                    s.textContent="Yüzey bulundu. Dokunarak Yerleştir";
+                })
+            })
+        })
+    </script>
+</body>
+</html>

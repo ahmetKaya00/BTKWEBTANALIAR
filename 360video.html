@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        body{margin: 0;}
+        #go{
+            position: fixed; z-index: 10; inset: auto 12px 12px auto; padding: 8px 12px;
+        }
+    </style>
+</head>
+<body>
+    <button id="go">Başlat</button>
+    <a-scene>
+        <a-assets>
+            <video id="vid" src="video.mp4" loop muted playsinline webkit-playsinline></video>
+        </a-assets>
+        <a-videosphere src="#vid" rotation="0 -90 0"></a-videosphere>
+    </a-scene>
+
+    <script>
+        const v = document.getElementById('vid');
+        const go = document.getElementById('go');
+
+        go.onclick = async () => {try {
+            await v.play(); go.remove();
+        } catch (error) {
+            alert("Video başlatılamadı!");
+        }}
+    </script>
+</body>
+</html>

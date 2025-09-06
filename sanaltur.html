@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>360° Sanal Tur</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body{margin:0}
+    .ui{position:fixed; left:12px; top:12px; z-index:10; display:flex; gap:8px}
+    .btn{padding:8px 12px; border-radius:10px; border:1px solid #1f2937; background:#0f172a; color:#e5e7eb; cursor:pointer}
+    .info{position:fixed; right:12px; top:12px; z-index:10; max-width:280px; padding:12px; border-radius:12px; border:1px solid #1f2937; background:#111827cc; color:#e5e7eb; font:14px/1.45 ui-sans-serif,system-ui}
+    .fade{position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; transition:opacity .35s; z-index:9}
+    .fade.show{opacity:1}
+  </style>
+</head>
+<body>
+  <div class="ui">
+    <button class="btn" id="btnBack">Geri</button>
+    <button class="btn" id="btnInfo">Bilgi</button>
+  </div>
+  <div class="info" id="panel" style="display:none"></div>
+  <div class="fade" id="fade"></div>
+
+  <a-scene renderer="antialias:true">
+    <a-assets>
+      <img id="lobby" src="lobby.jpeg">
+      <img id="room"  src="back.jpg">
+      <img id="hall"  src="hall.jpg">
+    </a-assets>
+
+    <!-- Arkaplan -->
+    <a-sky id="sky" radius="5000" src="#lobby" rotation="0 -90 0"></a-sky>
+
+    <!-- Tıklama için cursor + raycaster -->
+    <a-entity camera look-controls
+              cursor="rayOrigin: mouse"
+              raycaster="objects: .hotspot"></a-entity>
+
+    <a-entity id="hotspots"></a-entity>
+  </a-scene>
+
+  <script>
+    const SCENES = {
+      lobby:{ src:'#lobby', info:'Lobi: Sağdaki nokta Hall’a geçer.',
+        links:[ {pos:[2,1,-3], to:'hall', label:'Hall'} ] },
+      hall:{ src:'#hall', info:'Koridor: Sol -> Lobby, Sağ -> Room.',
+        links:[ {pos:[-2,1,-3], to:'lobby', label:'Lobby'},
+                {pos:[ 2,1,-3], to:'room',  label:'Room'} ] },
+      room:{ src:'#room', info:'Oda: Hall’a geri dönebilirsiniz.',
+        links:[ {pos:[0,1,-3], to:'hall', label:'Hall'} ] }
+    };
+
+    const sky = document.getElementById('sky');
+    const fade = document.getElementById('fade');
+    const panel = document.getElementById('panel');
+    const btnInfo = document.getElementById('btnInfo');
+    const btnBack = document.getElementById('btnBack');
+    const hotspotRoot = document.getElementById('hotspots');
+
+    const historyStack = [];
+    let current = 'lobby';
+    let infoVisible = false;
+
+    function setInfo(t){ panel.textContent = t; }
+    function clearHotspots(){ while(hotspotRoot.firstChild) hotspotRoot.removeChild(hotspotRoot.firstChild); }
+
+    function makeHotspot(x,y,z,label,to){
+      const node = document.createElement('a-entity');
+      node.classList.add('hotspot'); // raycaster hedefi
+      node.setAttribute('position', `${x} ${y} ${z}`);
+      node.setAttribute('geometry', 'primitive: circle; radius: 0.18');
+      node.setAttribute('material', 'color: #38bdf8; opacity: 0.95; side: double');
+
+      const txt = document.createElement('a-entity');
+      txt.setAttribute('text', `value:${label}; color:#fff; align:center; width:2`);
+      txt.setAttribute('position', '0 0.35 0');
+      node.appendChild(txt);
+
+      node.addEventListener('click', ()=> go(to));
+      hotspotRoot.appendChild(node);
+    }
+
+    function applyScene(key, pushHistory=true){
+      const s = SCENES[key]; if(!s) return;
+      fade.classList.add('show');
+      setTimeout(()=>{
+        sky.setAttribute('src', s.src);
+        clearHotspots();
+        s.links.forEach(l => makeHotspot(...l.pos, l.label, l.to));
+        setInfo(s.info);
+        if (pushHistory) historyStack.push(current);
+        current = key;
+        setTimeout(()=> fade.classList.remove('show'), 180);
+      }, 180);
+    }
+
+    function go(key){ applyScene(key, true); }
+
+    btnInfo.onclick = ()=> {
+      infoVisible = !infoVisible;
+      panel.style.display = infoVisible ? 'block' : 'none';
+    };
+    btnBack.onclick = ()=> {
+      if (historyStack.length){
+        const prev = historyStack.pop();
+        applyScene(prev, false);
+      }
+    };
+
+    applyScene(current, false);
+  </script>
+</body>
+</html>
