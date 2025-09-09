@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <title>Document</title>
+</head>
+<body>
+    <a-scene>
+        <a-sky src="photo.jpg"></a-sky>
+
+        <a-entity camera look-controls>
+            <a-cursor color="yellow"></a-cursor>
+        </a-entity>
+
+        <a-box id="startBtn" position="0 1.5 -3" depht="0.3" height="0.7" width="1.5" color="blue">
+            <a-text value="Başla" align="center" color="white" position="0 0 0.2"></a-text>
+        </a-box>
+        <a-box id="settingsBtn" position="-2 1.5 -3" depht="0.3" height="0.7" width="1.5" color="green">
+            <a-text value="Ayarlar" align="center" color="white" position="0 0 0.2"></a-text>
+        </a-box>
+        <a-box id="exitBtn" position="2 1.5 -3" depht="0.3" height="0.7" width="1.5" color="red">
+            <a-text value="Çıkış" align="center" color="white" position="0 0 0.2"></a-text>
+        </a-box>
+
+        <a-sound id="clickSound" src="a.mp3"></a-sound>
+    </a-scene>
+
+    <script>
+        const sound = document.querySelector("#clickSound");
+
+        document.querySelector("#startBtn").addEventListener('click', ()=>{
+            sound.components.sound.playSound();
+            console.log("Başla butonuna tıklandı!");
+        })
+        document.querySelector("#settingsBtn").addEventListener('click', ()=>{
+            sound.components.sound.playSound();
+            console.log("Ayarlar butonuna tıklandı!");
+        })
+        document.querySelector("#exitBtn").addEventListener('click', ()=>{
+            sound.components.sound.playSound();
+            console.log("Çıkış butonuna tıklandı!");
+        })
+    </script>
+</body>
+</html>

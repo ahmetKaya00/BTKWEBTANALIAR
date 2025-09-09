@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Uyarlanır Sistem - Gaze Büyütme</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>html,body{margin:0;height:100%;}</style>
+  </head>
+  <body>
+    <a-scene>
+      <!-- 360° arka plan -->
+      <a-sky src="photo.jpg"></a-sky>
+
+      <!-- Kamera + cursor + raycaster (yalnızca .clickable nesneleri hedefle) -->
+      <a-entity camera look-controls
+                cursor="fuse: true; fuseTimeout: 1500"
+                raycaster="objects: .clickable">
+        <!-- Gaze nişangahı -->
+        <a-entity position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                  material="color: white; shader: flat">
+        </a-entity>
+      </a-entity>
+
+      <!-- Ses varlıkları -->
+      <a-assets>
+        <audio id="clickSfx" src="a.mp3"></audio>
+      </a-assets>
+
+      <!-- Büyüyen buton (küp) -->
+      <a-box id="buton1" class="clickable"
+             position="0 1.5 -3" depth="0.3" height="0.3" width="0.3"
+             color="#4ade80"
+             sound="src: #clickSfx; on: click"
+             animation__gaze="property: scale; to: 1.3 1.3 1.3; startEvents: mouseenter; dur: 200; easing: easeOutQuad"
+             animation__ungaze="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200; easing: easeOutQuad">
+      </a-box>
+
+      <!-- Örnek: ikinci buton -->
+      <a-box id="buton2" class="clickable"
+             position="1 1.5 -3" depth="0.3" height="0.3" width="0.3"
+             color="#3b82f6"
+             sound="src: #clickSfx; on: click"
+             animation__gaze="property: scale; to: 1.3 1.3 1.3; startEvents: mouseenter; dur: 200"
+             animation__ungaze="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200">
+      </a-box>
+      <!-- Örnek: ikinci buton -->
+      <a-box id="buton3" class="clickable"
+             position="2 1.5 -3" depth="0.3" height="0.3" width="0.3"
+             color="#36aa32"
+             sound="src: #clickSfx; on: click"
+             animation__gaze="property: scale; to: 1.3 1.3 1.3; startEvents: mouseenter; dur: 200"
+             animation__ungaze="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200">
+      </a-box>
+
+      <!-- İstersen gece/loş ortamda daha parlak görünüm -->
+      <script>
+        // Basit gece modu örneği (opsiyonel)
+        const isDark = new Date().getHours() > 19 || new Date().getHours() < 7;
+        if (isDark) {
+          document.querySelectorAll('.clickable').forEach(box => {
+            box.setAttribute('material', 'emissive: #ffff77; emissiveIntensity: 0.35');
+          });
+        }
+
+        // Fuse tamamlanınca 'click' olayı ateşlenir: renk değiştir + logla
+        const btn1 = document.querySelector('#buton1');
+        const btn2 = document.querySelector('#buton2');
+        const btn3 = document.querySelector('#buton3');
+
+        btn1.addEventListener('click', () => {
+          btn1.setAttribute('color', '#22c55e'); // yeşil bir ton
+          console.log('Ayarlar Butonuna Tıklandı');
+        });
+
+        btn2.addEventListener('click', () => {
+          btn2.setAttribute('color', '#2563eb'); // mavi bir ton
+          console.log('Başla Butonuna Tıklandı');
+        });
+        btn3.addEventListener('click', () => {
+          btn2.setAttribute('color', '#2563eb'); // mavi bir ton
+          console.log('Çıkış Butonuna Tıklandı');
+        });
+      </script>
+    </a-scene>
+  </body>
+</html>

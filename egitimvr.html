@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <title>Document</title>
+</head>
+<body>
+    <a-scene>
+        <a-sky src="photo.jpg"></a-sky>
+        <a-entity camera look-controls
+                  cursor="fuse: true; fuseTimeout: 1500"
+                  raycaster="objects: .clickable">
+        <a-entity position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                  material="color: white; shader: flat">
+        </a-entity>        
+        </a-entity>
+        <a-assets>
+            <audio id="infoSfx" src="a.mp3"></audio>
+        </a-assets>
+
+        <a-box class="clickable" id="infoBtn"
+               position="0 1.5 -3" depth="0.3" height="0.3" width="0.3" color="#f87171" sound="src: #infoSfx on: click"></a-box>
+        <a-entity id="infoPanel" visible="false" position="0 2 -3"
+                  text="value: Bu sınıfta matematik dersindeyiz.; align: center; color: yellow; width: 3"></a-entity>
+    </a-scene>
+
+    <script>
+        const btn = document.querySelector('#infoBtn')
+        const panel = document.querySelector('#infoPanel')
+
+        btn.addEventListener('click', () => {
+            panel.setAttribute('visible',true);
+            console.log('Bilgi butonuna basıldı!')
+        });
+    </script>
+</body>
+</html>

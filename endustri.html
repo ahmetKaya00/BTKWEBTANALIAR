@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gelişmiş Fabrika Simülasyonu (Eğitim)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>html,body{margin:0;height:100%;background:#000}</style>
+</head>
+<body>
+  <a-scene renderer="antialias:true" background="color:#101015">
+    <!-- Kamera + Gaze cursor + raycaster: sadece .clickable -->
+    <a-entity camera look-controls
+          position="0 1.6 0"
+          cursor="fuse:true; fuseTimeout:1200"
+          raycaster="objects: .clickable">
+      <a-entity position="0 0 -1"
+                geometry="primitive:ring;radiusInner:0.02;radiusOuter:0.03"
+                material="color:#fff;shader:flat"></a-entity>
+    </a-entity>
+
+    <!-- Işıklar -->
+    <a-entity light="type:ambient; intensity:0.6"></a-entity>
+    <a-entity light="type:directional; intensity:0.8" position="2 4 3"></a-entity>
+
+    <!-- Asset'ler: sesler -->
+    <a-assets>
+      <audio id="sfxClick" src="https://cdn.aframe.io/basic-guide/audio/click.ogg"></audio>
+      <audio id="sfxOk"    src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+      <audio id="sfxWarn"  src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+      <audio id="sfxAlarm" src="https://actions.google.com/sounds/v1/alarms/air_horn.ogg"></audio>
+    </a-assets>
+
+    <!-- Zemin -->
+    <a-plane rotation="-90 0 0" width="20" height="20" color="#1e293b"></a-plane>
+
+    <!-- MAKİNE GÖVDE -->
+    <a-entity id="machine" position="0 1.0 -3">
+      <a-box depth="1.2" height="1.0" width="2.2" color="#334155"></a-box>
+
+      <!-- Rotor: Çalışırken döner -->
+      <a-cylinder id="rotor" position="0 0.3 0.61" radius="0.18" height="1.1" color="#64748b"></a-cylinder>
+      <!-- Rotor dönme animasyonu (başta durur, JS ile aç/kapat) -->
+      <a-animation id="rotSpin" attribute="rotation" dur="1200" to="0 0 360" repeat="indefinite" easing="linear" begin="spinStart" end="spinStop"></a-animation>
+
+      <!-- Durum Paneli -->
+      <a-plane id="panel" position="0 0.85 0.01" width="1.9" height="0.55" color="#0f172a"></a-plane>
+      <a-text id="panelTitle" value="Makine Eğitim Paneli" position="-0.85 0.98 0.02"
+              color="#fff" width="3"></a-text>
+      <a-text id="panelStatus" value="Durum: PPE Onayı Bekleniyor"
+              position="-0.85 0.78 0.02" color="#eab308" width="3"></a-text>
+
+      <!-- İlerleme Barı (Isınma) -->
+      <a-plane id="barBg" position="-0.6 0.58 0.02" width="1.2" height="0.08" color="#334155"></a-plane>
+      <a-plane id="barFill" position="-1.2 0.58 0.03" width="0.0" height="0.08" color="#22c55e"></a-plane>
+      <a-text value="Isınma" position="0.55 0.55 0.02" color="#9ca3af" width="2"></a-text>
+    </a-entity>
+
+    <!-- KONTROL PANELİ (Butonlar) -->
+    <a-entity position="0 1.0 -1.6">
+      <!-- PPE ONAY -->
+      <a-box id="btnPPE" class="clickable" position="-1.6 0.5 -1.3" depth="0.3" height="0.3" width="0.9"
+             color="#38bdf8"
+             animation__hover="property:scale;to:1.05 1.05 1.05;startEvents:mouseenter;dur:120"
+             animation__unhover="property:scale;to:1 1 1;startEvents:mouseleave;dur:120"></a-box>
+      <a-text value="PPE Onay" position="-1.6 0.82 -1.3" align="center" color="#ffffff" width="2"></a-text>
+
+      <!-- START -->
+      <a-box id="btnStart" class="clickable" position="-0.6 0.5 -1.3" depth="0.3" height="0.3" width="0.9"
+             color="#22c55e"
+             animation__hover="property:scale;to:1.05 1.05 1.05;startEvents:mouseenter;dur:120"
+             animation__unhover="property:scale;to:1 1 1;startEvents:mouseleave;dur:120"></a-box>
+      <a-text value="START" position="-0.6 0.82 -1.3" align="center" color="#ffffff" width="2"></a-text>
+
+      <!-- STOP -->
+      <a-box id="btnStop" class="clickable" position="0.4 0.5 -1.3" depth="0.3" height="0.3" width="0.9"
+             color="#ef4444"
+             animation__hover="property:scale;to:1.05 1.05 1.05;startEvents:mouseenter;dur:120"
+             animation__unhover="property:scale;to:1 1 1;startEvents:mouseleave;dur:120"></a-box>
+      <a-text value="STOP" position="0.4 0.82 -1.3" align="center" color="#ffffff" width="2"></a-text>
+
+      <!-- E-STOP -->
+      <a-box id="btnEstop" class="clickable" position="1.4 0.5 -1.3" depth="0.3" height="0.3" width="0.9"
+             color="#f97316"
+             animation__hover="property:scale;to:1.05 1.05 1.05;startEvents:mouseenter;dur:120"
+             animation__unhover="property:scale;to:1 1 1;startEvents:mouseleave;dur:120"></a-box>
+      <a-text value="E-STOP" position="1.4 0.82 -1.3" align="center" color="#ffffff" width="2"></a-text>
+
+      <!-- BAKIM KİLİDİ (INTERLOCK) -->
+      <a-box id="btnLock" class="clickable" position="2.4 0.5 -1.3" depth="0.3" height="0.3" width="0.9"
+             color="#a855f7"
+             animation__hover="property:scale;to:1.05 1.05 1.05;startEvents:mouseenter;dur:120"
+             animation__unhover="property:scale;to:1 1 1;startEvents:mouseleave;dur:120"></a-box>
+      <a-text id="lockLabel" value="Kilidi AÇ" position="2.4 0.82 -1.3" align="center" color="#ffffff" width="2"></a-text>
+    </a-entity>
+
+    <!-- Ses kaynakları -->
+    <a-entity id="sndClick" sound="src:#sfxClick"></a-entity>
+    <a-entity id="sndOk"    sound="src:#sfxOk"></a-entity>
+    <a-entity id="sndWarn"  sound="src:#sfxWarn"></a-entity>
+    <a-entity id="sndAlarm" sound="src:#sfxAlarm"></a-entity>
+
+    <script>
+      // --- Yardımcılar ---
+      const S = sel => document.querySelector(sel);
+      const play = id => S(id).components.sound.playSound();
+      const setText = (id, val, color) => {
+        const t = S(id);
+        t.setAttribute('value', val);
+        if (color) t.setAttribute('color', color);
+      };
+
+      // --- Eleman referansları ---
+      const rotor = S('#rotor');
+      const panelStatus = '#panelStatus';
+      const barFill = S('#barFill');
+      const machine = S('#machine');
+      const lockLabel = S('#lockLabel');
+
+      // --- Durum Makinesi ---
+      const state = {
+        ppeOK: false,
+        locked: false,       // bakım kilidi açık mı? (true = kilitli, başlatma engelli)
+        warming: false,
+        running: false,
+        warmupMs: 5000,
+        warmTimer: null
+      };
+
+      // Rotor animasyon kontrolü (A-Frame animation events)
+      function rotorStart(){ rotor.emit('spinStart'); }
+      function rotorStop(){ rotor.emit('spinStop'); }
+
+      function resetBar(){
+        barFill.setAttribute('width', 0.0);
+        barFill.setAttribute('position','-1.2 0.58 0.03');
+      }
+      function setBarProgress(p){
+        const w = 1.2 * p; // 0..1
+        barFill.setAttribute('width', Math.max(0.001, w));
+        barFill.setAttribute('position', (-1.2 + w/2) + ' 0.58 0.03');
+      }
+
+      function setMachineColor(hex){ machine.setAttribute('color', hex); }
+
+      // --- Aksiyonlar ---
+      function doPPE(){
+        play('#sndClick');
+        if (!state.ppeOK){
+          state.ppeOK = true;
+          setText(panelStatus, 'Durum: PPE Onaylandı → START ile ısınma', '#22c55e');
+          setMachineColor('#3b82f6');
+          play('#sndOk');
+        } else {
+          setText(panelStatus, 'PPE zaten onaylı.', '#9ca3af');
+        }
+      }
+
+      function doStart(){
+        play('#sndClick');
+        if (state.locked){
+          setText(panelStatus, 'BAŞLATILAMAZ: Bakım kilidi aktif!', '#f97316');
+          play('#sndWarn');
+          return;
+        }
+        if (!state.ppeOK){
+          setText(panelStatus, 'ÖNCE PPE onayı gerekli.', '#eab308');
+          play('#sndWarn');
+          return;
+        }
+        if (state.running || state.warming){
+          setText(panelStatus, 'Zaten başlatılıyor/çalışıyor.', '#9ca3af');
+          return;
+        }
+        // Isınma başla
+        state.warming = true;
+        resetBar();
+        setMachineColor('#22c55e');
+        setText(panelStatus, 'Isınma başlatıldı (≈5 sn)...', '#22c55e');
+
+        const t0 = performance.now();
+        function tick(){
+          if (!state.warming) return; // kesildiyse
+          const p = Math.min(1, (performance.now() - t0) / state.warmupMs);
+          setBarProgress(p);
+          if (p < 1){
+            state.warmTimer = requestAnimationFrame(tick);
+          } else {
+            // Çalışma moduna geç
+            state.warming = false;
+            state.running = true;
+            rotorStart();
+            setMachineColor('#16a34a');
+            setText(panelStatus, 'Çalışıyor: STOP veya E-STOP ile durdur.', '#22c55e');
+            play('#sndOk');
+          }
+        }
+        state.warmTimer = requestAnimationFrame(tick);
+      }
+
+      function doStop(manual=true){
+        if (state.warming){
+          cancelAnimationFrame(state.warmTimer);
+          state.warming = false;
+        }
+        if (state.running){
+          state.running = false;
+          rotorStop();
+        }
+        resetBar();
+        setMachineColor('#334155');
+        setText(panelStatus, manual ? 'Durdu.' : 'E-STOP: Acil duruş!', manual ? '#9ca3af' : '#ef4444');
+        play(manual ? '#sndClick' : '#sndAlarm');
+      }
+
+      function doEstop(){
+        // Acil durdurma her durumda geçerli
+        doStop(false);
+      }
+
+      function toggleLock(){
+        play('#sndClick');
+        state.locked = !state.locked;
+        if (state.locked){
+          // kilit aktifken çalışıyorsa kapat
+          if (state.running || state.warming) doStop(true);
+          lockLabel.setAttribute('value', 'Kilidi KAPAT');
+          setText(panelStatus, 'Bakım kilidi AKTİF. Başlatma engellendi.', '#f97316');
+          machine.setAttribute('material','emissive:#a855f7; emissiveIntensity:0.25');
+        } else {
+          lockLabel.setAttribute('value', 'Kilidi AÇ');
+          setText(panelStatus, 'Bakım kilidi PASİF. PPE → START ile başlat.', '#22c55e');
+          machine.setAttribute('material','emissive:#000; emissiveIntensity:0.0');
+        }
+      }
+
+      // --- Buton olayları ---
+      S('#btnPPE').addEventListener('click', doPPE);
+      S('#btnStart').addEventListener('click', doStart);
+      S('#btnStop').addEventListener('click', ()=>doStop(true));
+      S('#btnEstop').addEventListener('click', doEstop);
+      S('#btnLock').addEventListener('click', toggleLock);
+
+      // Küçük kalite-of-life: gece ise panelleri hafif parlat
+      const hour = new Date().getHours();
+      if (hour >= 19 || hour < 7){
+        machine.setAttribute('material','emissive:#94a3b8; emissiveIntensity:0.1');
+      }
+    </script>
+  </a-scene>
+</body>
+</html>

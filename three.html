@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Three.js Butonlar</title>
+  <!-- NOT: ES Module kullandığımız için UMD three.min.js'yi KALDIRDIK -->
+</head>
+<body>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
+
+    // Scene / Camera / Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Işıklar
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambient);
+    const directional = new THREE.DirectionalLight(0xffffff, 1);
+    directional.position.set(5, 5, 5);
+    scene.add(directional);
+
+    // Basit buton kutuları
+    function createButton(text, color, x) {
+      const geometry = new THREE.BoxGeometry(1, 0.5, 0.2);
+      const material = new THREE.MeshStandardMaterial({ color });
+      const button = new THREE.Mesh(geometry, material);
+      button.position.set(x, 0, -3);
+      button.userData = { label: text };
+      scene.add(button);
+      return button;
+    }
+
+    const startBtn   = createButton("Başla",   0xffffff,  0);
+    const settingsBtn = createButton("Ayarlar", 0xffffff, -2);
+    const exitBtn    = createButton("Çıkış",   0xffffff,  2);
+
+    camera.position.z = 3; // Butonlar -3'te olduğundan 3 daha iyi bir görüş sağlar
+
+    // Raycaster
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('click', (event) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      if (intersects.length > 0) {
+        console.log("Buton Tıklandı: " + (intersects[0].object.userData.label ?? '(etiket yok)'));
+      }
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Döngü
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
